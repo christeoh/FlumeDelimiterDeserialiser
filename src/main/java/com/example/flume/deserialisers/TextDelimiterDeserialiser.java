@@ -40,9 +40,12 @@ public class TextDelimiterDeserialiser implements EventDeserializer {
     private boolean isOpen;
     private boolean inTopElementScope = false;
     private String closingDelimiter;
+    private String ignoreText;
 
     public TextDelimiterDeserialiser(Context context, ResettableInputStream inputStream) {
         this.closingDelimiter = context.getString(CLOSING_DELIMITER_KEY, CLOSING_DELIMITER_KEY_DEFAULT);
+        // TODO: implement ignoreText in readEvent
+        this.ignoreText = context.getString(IGNORE_TEXT_KEY, IGNORE_TEXT_DEFAULT);
         this.in = inputStream;
         try {
             r = new InputStreamReader(new FlumeInputStream(inputStream));
