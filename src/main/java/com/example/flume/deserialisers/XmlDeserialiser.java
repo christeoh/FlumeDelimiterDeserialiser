@@ -11,6 +11,8 @@ import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
+import java.util.Stack;
 
 import javax.xml.stream.XMLInputFactory;
 
@@ -30,6 +32,8 @@ import org.slf4j.LoggerFactory;
 public class XmlDeserialiser implements EventDeserializer {
     private final static String CLOSING_DELIMITER_KEY = "closingDelimiter";
     private final static String CLOSING_DELIMITER_KEY_DEFAULT = "</element>";
+    private final static String IGNORE_TEXT_KEY = "ignoreText";
+    private final static String IGNORE_TEXT_DEFAULT = "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>";
 
     private final static String DEFAULT_CHARSET = "UTF-8";
     private final Charset charset = Charset.forName(DEFAULT_CHARSET);
@@ -57,10 +61,15 @@ public class XmlDeserialiser implements EventDeserializer {
         //logger.error("Reading a single event from XML stream unsupported. Use readEvents()");
         Event event = null;
         StringBuilder sb = new StringBuilder();
-
+        Stack<Character> buf = new Stack<Character>();
         try {
             int c;
             int readChars = 0;
+            int closingDelimLen = closingDelimiter.length();
+            // populate the stack we are looking for
+            for (int i = closingDelimLen-1;i>0;i--) {
+                buf.push(closingDelimiter.charAt(i));
+            }
             while ((c = in.readChar()) != -1) {
                 readChars++;
 
@@ -71,7 +80,18 @@ public class XmlDeserialiser implements EventDeserializer {
 
                 sb.append((char)c);
                 // look for the closing XML tag
-                if (sb.toString().indexOf(closingDelimiter) != -1) {
+                int sbLen = sb.length();
+                if (!buf.isEmpty()) {
+                    Character bufChar = buf.pop();
+                    if (c != bufChar) {
+                        // reset entire buffer
+                        buf.clear();
+                        for (int i = closingDelimLen-1;i>0;i--) {
+                            buf.push(closingDelimiter.charAt(i));
+                        }
+                    }
+                }
+                if (buf.isEmpty()) {
                     mark();
                     break;
                 }

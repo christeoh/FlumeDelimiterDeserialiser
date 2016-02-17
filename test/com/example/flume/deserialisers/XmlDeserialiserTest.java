@@ -89,7 +89,7 @@ public class XmlDeserialiserTest {
         List<Event> events;
 
         EventDeserializer des = new XmlDeserialiser(new Context(), in);
-        events = des.readEvents(1);
+        events = des.readEvents(10);
         //System.out.println("Event: " + events.size());
         for (Event e : events) {
             System.out.println("Event: " + new String(e.getBody()));
