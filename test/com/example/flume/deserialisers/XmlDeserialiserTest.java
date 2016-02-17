@@ -68,7 +68,7 @@ public class XmlDeserialiserTest {
         List<Event> events;
 
         EventDeserializer des = new XmlDeserialiser(new Context(), in);
-        events = des.readEvents(1);
+        events = des.readEvents(10);
         //System.out.println("Event: " + events.size());
         for (Event e : events) {
             System.out.println("Event: " + new String(e.getBody()));
@@ -97,4 +97,24 @@ public class XmlDeserialiserTest {
         des.close();
     }
 
+    @Test
+    public void testNoNewLineReadEvents() throws IOException {
+        file = new File("target/nonewlinetest.xml").getAbsoluteFile();
+        logger.info("Data file: {}", file);
+        meta = File.createTempFile("test", ".avro");
+        logger.info("PositionTracker meta file: {}", meta);
+        meta.delete(); // We want the filename but not the empty file
+
+        PositionTracker tracker = DurablePositionTracker.getInstance(meta, file.getPath());
+        ResettableInputStream in = new ResettableFileInputStream(file, tracker);
+        List<Event> events;
+
+        EventDeserializer des = new XmlDeserialiser(new Context(), in);
+        events = des.readEvents(10);
+        //System.out.println("Event: " + events.size());
+        for (Event e : events) {
+            System.out.println("Event: " + new String(e.getBody()));
+        }
+        des.close();
+    }
 }

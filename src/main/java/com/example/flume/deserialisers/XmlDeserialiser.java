@@ -5,15 +5,14 @@ package com.example.flume.deserialisers;
  * From: http://xingwu.me/2014/10/04/Implement-a-Flume-Deserializer-Plugin-to-Import-XML-Files/
  */
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.List;
 
 import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamConstants;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
 
 import org.apache.flume.Context;
 import org.apache.flume.Event;
@@ -29,111 +28,151 @@ import org.slf4j.LoggerFactory;
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class XmlDeserialiser implements EventDeserializer {
-    private final static String TOP_LEVEL_ELEMENT = "element";
+    private final static String CLOSING_DELIMITER_KEY = "closingDelimiter";
+    private final static String CLOSING_DELIMITER_KEY_DEFAULT = "</element>";
+
     private final static String DEFAULT_CHARSET = "UTF-8";
     private final Charset charset = Charset.forName(DEFAULT_CHARSET);
-    private XMLStreamReader r;
+    private InputStreamReader r;
     private final ResettableInputStream in;
     private final static Logger logger = LoggerFactory.getLogger(XmlDeserialiser.class);
     private boolean isOpen;
     private boolean inTopElementScope = false;
+    private String closingDelimiter;
 
     public XmlDeserialiser(Context context, ResettableInputStream inputStream) {
         XMLInputFactory inputFactory = XMLInputFactory.newInstance();
+        this.closingDelimiter = context.getString(CLOSING_DELIMITER_KEY, CLOSING_DELIMITER_KEY_DEFAULT);
         this.in = inputStream;
         try {
-            r = inputFactory.createXMLStreamReader(new FlumeInputStream(in));
+            r = new InputStreamReader(new FlumeInputStream(inputStream));
             this.isOpen = true;
-        } catch (XMLStreamException e) {
+        } catch (Exception e) {
             logger.error("Failed to create input stream: "+e.getMessage());
             e.printStackTrace();
         }
     }
 
     public Event readEvent() throws IOException {
-        logger.error("Reading a single event from XML stream unsupported. Use readEvents()");
-        return null;
-    }
-
-    public List<Event> readEvents(int numEvents) throws IOException {
-        checkStreamIsOpen();
-        List<Event> events = new LinkedList<Event>();
+        //logger.error("Reading a single event from XML stream unsupported. Use readEvents()");
+        Event event = null;
         StringBuilder sb = new StringBuilder();
+
         try {
-            int event = r.getEventType();
-            while (true) {
+            int c;
+            int readChars = 0;
+            while ((c = in.readChar()) != -1) {
+                readChars++;
 
-                switch(event) {
-                    case XMLStreamConstants.START_DOCUMENT:
-                        break;
-                    case XMLStreamConstants.END_DOCUMENT:
-                        break;
-                    case XMLStreamConstants.CHARACTERS:
-                        break;
-                    case XMLStreamConstants.START_ELEMENT:
-                        String name = r.getName().getLocalPart();
-                        if (name.equals(TOP_LEVEL_ELEMENT)) {
-                            this.inTopElementScope = true;
-                            // reset StringBuilder
-                            sb = new StringBuilder();
-                        }
-
-                        sb.append(String.format("<%s>%s</%s>",name,r.getElementText(),name));
-                        Event eventObj = EventBuilder.withBody(sb.toString(),this.charset);
-                        events.add(eventObj);
-                        //sb.append(r.getElementText());
-                        break;
-                    case XMLStreamConstants.END_ELEMENT:
-                        String endName = r.getName().getLocalPart();
-                        if (endName.equals(TOP_LEVEL_ELEMENT)) {
-                            inTopElementScope = false;
-                            sb.append(String.format("</%s>",endName));
-                            // end of event reached - build event and return
-                            // Build event here.
-                            // Optionally add headers with eventObj.setHeaders(Map<String,String>))
-                            //Event eventObj = EventBuilder.withBody(sb.toString(),this.charset);
-                            //events.add(eventObj);
-                        }
-                        break;
+                // FIXME: support \r\n
+                if (c == '\n') {
+                    continue;
                 }
 
-                if (!r.hasNext()) {
-                    break;
-                }
-                event = r.next();
-
-                if (events.size() >= numEvents) {
+                sb.append((char)c);
+                // look for the closing XML tag
+                if (sb.toString().indexOf(closingDelimiter) != -1) {
+                    mark();
                     break;
                 }
             }
 
-            return events;
-        } catch (XMLStreamException e) {
-            logger.error(e.getMessage());
+            if (readChars > 0) {
+                return EventBuilder.withBody(sb.toString(),charset);
+            } else {
+                return null;
+            }
+        } catch (Exception e) {
+            System.err.println("Error reading text: "+e.getMessage());
+        }
+        return null;
+    }
+
+    public List<Event> readEvents(int numEvents) throws IOException {
+        List<Event> events = new LinkedList<Event>();
+        for (int i = 0; i < numEvents; i++) {
+            Event event = readEvent();
+            if (event != null) {
+                events.add(event);
+            } else {
+                break;
+            }
+        }
+        return events;
+    }
+
+    public List<Event> readEventsOld(int numEvents) throws IOException {
+        ensureOpen();
+        List<Event> events = new LinkedList<Event>();
+        StringBuilder sb = new StringBuilder();
+        try {
+            BufferedReader br = new BufferedReader(r);
+            String line;
+            while ((line = br.readLine()) != null) {
+                line = line.trim();
+                if (line.contains(closingDelimiter)) {
+                    String before = line.substring(0,line.indexOf(closingDelimiter));
+                    String after = line.substring(line.indexOf(closingDelimiter)+closingDelimiter.length(),line.length());
+                    sb.append(before);
+                    sb.append(closingDelimiter);
+                    Event event = EventBuilder.withBody(sb.toString(),charset);
+                    events.add(event);
+                    sb = new StringBuilder(after);
+                }
+                else
+                {
+                    sb.append(line);
+                }
+            }
+        }
+        catch (Exception e) {
+            System.out.println("Something went wrong: "+e.getMessage());
         }
         return events;
     }
 
     public void mark() throws IOException {
-        checkStreamIsOpen();
+        ensureOpen();
         this.in.mark();
     }
 
     public void reset() throws IOException {
-        checkStreamIsOpen();
+        ensureOpen();
         this.in.reset();
     }
 
     public void close() throws IOException {
-        checkStreamIsOpen();
+        ensureOpen();
         this.in.close();
         this.isOpen = false;
     }
 
     // throws exception if stream is closed
-    private void checkStreamIsOpen() {
+    private void ensureOpen() {
         if (!this.isOpen) {
             throw new IllegalStateException("Stream is closed.");
+        }
+    }
+
+    private String readLine() throws IOException {
+        StringBuilder sb = new StringBuilder();
+        int c;
+        int readChars = 0;
+        while ((c = in.readChar()) != -1) {
+            readChars++;
+
+            // FIXME: support \r\n
+            if (c == '\n') {
+                break;
+            }
+
+            sb.append((char)c);
+        }
+
+        if (readChars > 0) {
+            return sb.toString();
+        } else {
+            return null;
         }
     }
 
