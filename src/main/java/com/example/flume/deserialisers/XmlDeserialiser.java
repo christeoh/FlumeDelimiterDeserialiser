@@ -75,11 +75,13 @@ public class XmlDeserialiser implements EventDeserializer {
                         if (name.equals(TOP_LEVEL_ELEMENT)) {
                             this.inTopElementScope = true;
                             // reset StringBuilder
-                            sb.delete(0,sb.length()-1);
+                            sb = new StringBuilder();
                         }
 
-                        sb.append(String.format("<%s>",name));
-                        sb.append(r.getElementText());
+                        sb.append(String.format("<%s>%s</%s>",name,r.getElementText(),name));
+                        Event eventObj = EventBuilder.withBody(sb.toString(),this.charset);
+                        events.add(eventObj);
+                        //sb.append(r.getElementText());
                         break;
                     case XMLStreamConstants.END_ELEMENT:
                         String endName = r.getName().getLocalPart();
@@ -89,8 +91,8 @@ public class XmlDeserialiser implements EventDeserializer {
                             // end of event reached - build event and return
                             // Build event here.
                             // Optionally add headers with eventObj.setHeaders(Map<String,String>))
-                            Event eventObj = EventBuilder.withBody(sb.toString(),this.charset);
-                            events.add(eventObj);
+                            //Event eventObj = EventBuilder.withBody(sb.toString(),this.charset);
+                            //events.add(eventObj);
                         }
                         break;
                 }
@@ -99,9 +101,13 @@ public class XmlDeserialiser implements EventDeserializer {
                     break;
                 }
                 event = r.next();
+
+                if (events.size() >= numEvents) {
+                    break;
+                }
             }
 
-            return null;
+            return events;
         } catch (XMLStreamException e) {
             logger.error(e.getMessage());
         }
