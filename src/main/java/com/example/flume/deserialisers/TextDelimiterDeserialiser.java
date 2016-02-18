@@ -5,7 +5,6 @@ package com.example.flume.deserialisers;
  * Modified From: http://xingwu.me/2014/10/04/Implement-a-Flume-Deserializer-Plugin-to-Import-XML-Files/
  */
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
@@ -141,5 +140,18 @@ public class TextDelimiterDeserialiser implements EventDeserializer {
         if (!this.isOpen) {
             throw new IllegalStateException("Stream is closed.");
         }
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////
+    // Nested classes:
+    ///////////////////////////////////////////////////////////////////////////////
+    /** Builder implementations MUST have a public no-arg constructor */
+    public static class Builder implements EventDeserializer.Builder {
+
+        @Override
+        public TextDelimiterDeserialiser build(Context context, ResettableInputStream in) {
+            return new TextDelimiterDeserialiser(context, in);
+        }
+
     }
 }
