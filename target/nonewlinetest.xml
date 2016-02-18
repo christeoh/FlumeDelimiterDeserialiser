@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<element>
+    <mynestedelement>
+        nested value
+    </mynestedelement>
+</element>
+<element>
+    <testelement>
+
+        blah
+        blah
+
+
+    </testelement>
+</element><element>my additional element</element>
