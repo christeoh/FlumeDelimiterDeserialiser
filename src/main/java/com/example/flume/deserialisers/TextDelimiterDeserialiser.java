@@ -1,8 +1,8 @@
 package com.example.flume.deserialisers;
 
 /**
- * Created by cteoh on 15/02/2016.
- * From: http://xingwu.me/2014/10/04/Implement-a-Flume-Deserializer-Plugin-to-Import-XML-Files/
+ * A simple text delimited Flume deserialiser.
+ * Modified From: http://xingwu.me/2014/10/04/Implement-a-Flume-Deserializer-Plugin-to-Import-XML-Files/
  */
 
 import java.io.BufferedReader;
@@ -44,7 +44,6 @@ public class TextDelimiterDeserialiser implements EventDeserializer {
 
     public TextDelimiterDeserialiser(Context context, ResettableInputStream inputStream) {
         this.closingDelimiter = context.getString(CLOSING_DELIMITER_KEY, CLOSING_DELIMITER_KEY_DEFAULT);
-        // TODO: implement ignoreText in readEvent
         this.ignoreText = context.getString(IGNORE_TEXT_KEY, IGNORE_TEXT_DEFAULT);
         this.in = inputStream;
         try {
@@ -63,10 +62,12 @@ public class TextDelimiterDeserialiser implements EventDeserializer {
             int c;
             int readChars = 0;
             int closingDelimLen = closingDelimiter.length();
+            int ignoreTextLen = ignoreText.length();
             // populate the stack we are looking for
             for (int i = closingDelimLen-1;i>0;i--) {
                 buf.push(closingDelimiter.charAt(i));
             }
+
             while ((c = in.readChar()) != -1) {
                 readChars++;
 
@@ -77,7 +78,6 @@ public class TextDelimiterDeserialiser implements EventDeserializer {
 
                 sb.append((char)c);
                 // look for the closing XML tag
-                int sbLen = sb.length();
                 if (!buf.isEmpty()) {
                     Character bufChar = buf.pop();
                     if (c != bufChar) {
@@ -88,14 +88,16 @@ public class TextDelimiterDeserialiser implements EventDeserializer {
                         }
                     }
                 }
+
                 if (buf.isEmpty()) {
+                    // closing tag found
                     mark();
                     break;
                 }
             }
 
             if (readChars > 0) {
-                return EventBuilder.withBody(sb.toString(),charset);
+                return EventBuilder.withBody(sb.toString().replace(ignoreText,""),charset);
             } else {
                 return null;
             }
