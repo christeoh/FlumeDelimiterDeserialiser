@@ -48,7 +48,7 @@ public class TextDelimiterDeserialiserTest {
 
     @Test
     public void testReadEvents() throws IOException {
-        file = new File("target/test.xml").getAbsoluteFile();
+        file = new File("test/resources/test.xml").getAbsoluteFile();
         logger.info("Data file: {}", file);
         meta = File.createTempFile("test", ".avro");
         logger.info("PositionTracker meta file: {}", meta);
@@ -70,7 +70,7 @@ public class TextDelimiterDeserialiserTest {
 
     @Test
     public void testNestedReadEvents() throws IOException {
-        file = new File("target/nestedtest.xml").getAbsoluteFile();
+        file = new File("test/resources/nestedtest.xml").getAbsoluteFile();
         logger.info("Data file: {}", file);
         meta = File.createTempFile("test", ".avro");
         logger.info("PositionTracker meta file: {}", meta);
@@ -92,7 +92,7 @@ public class TextDelimiterDeserialiserTest {
 
     @Test
     public void testNoNewLineReadEvents() throws IOException {
-        file = new File("target/nonewlinetest.xml").getAbsoluteFile();
+        file = new File("test/resources/nonewlinetest.xml").getAbsoluteFile();
         logger.info("Data file: {}", file);
         meta = File.createTempFile("test", ".avro");
         logger.info("PositionTracker meta file: {}", meta);
