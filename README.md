@@ -1,4 +1,4 @@
-# FlumeDelimiterDeserialiser
+# Text Delimiter Deserialiser for Flume
 A Flume Deserialiser that can produce events based on a specific line delimiter. It also ignores text when configured to do so.
 
 Has the following configuration parameters: 
